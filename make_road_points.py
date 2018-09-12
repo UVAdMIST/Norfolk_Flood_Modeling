@@ -9,9 +9,25 @@ Created on Fri Sep  7 14:38:42 2018
 import shapefile
 import pandas as pd
 
+import os
+import sys
+
+import arcpy
+import numpy as np
+from collections import Counter
+
+module_path = os.path.abspath(os.path.join('..'))
+if module_path not in sys.path:
+    sys.path.append(module_path)
+    
+from arcpy import env
+from arcpy.sa import Raster, Ln, Tan, RemapValue, Reclassify, PathDistance, PathAllocation, \
+    ExtractMultiValuesToPoints, FocalStatistics, NbrRectangle
 gis_proj_dir = "D:\WAZE\Shapefiles"
-#gis_main_dir = "C:/Users/Jeff/Google Drive/research/Hampton Roads Data/Geographic Data/"
-#elev_raster = '{}Raster/USGS Nor DEM/mosaic/nor_mosaic.tif'.format(gis_main_dir)
+
+arcpy.CheckOutExtension("spatial")
+env.overwriteOutput = True
+env.workspace = gis_proj_dir
 
 def read_shapefile_attribute_table(sf_name):
     sf = shapefile.Reader(sf_name)
@@ -21,62 +37,80 @@ def read_shapefile_attribute_table(sf_name):
     df.columns = sf_field_names[1:]
     df.reset_index(inplace=True)
     return df
-
-import os
-import sys
-module_path = os.path.abspath(os.path.join('..'))
-if module_path not in sys.path:
-    sys.path.append(module_path)
-import arcpy
-#from gis_utils import read_shapefile_attribute_table, gis_proj_dir, gis_main_dir, elev_raster 
-import numpy as np
-
-import pandas as pd
-
-from arcpy import env
-from arcpy.sa import Raster, Ln, Tan, RemapValue, Reclassify, PathDistance, PathAllocation, \
-    ExtractMultiValuesToPoints, FocalStatistics, NbrRectangle
-
-arcpy.CheckOutExtension("spatial")
-env.overwriteOutput = True
-env.workspace = gis_proj_dir
-#
-
     
 def join_flooded_pts_with_rd_attributes(flood_pts='flooded_points.shp', road_lines='Street_Norfolk.shp', 
         out_file_name = 'fld_pts_rd_data.shp'):
     print "SpatialJoin_analysis"
     arcpy.SpatialJoin_analysis(flood_pts, road_lines, out_file_name, match_option='CLOSEST')
 
-#def sample_road_points():
-#    fld_pts = 'D:/WAZE/Shapefiles/fld_pts_rd_data.shp'
-#    rd_pts = 'D:/WAZE/Shapefiles/rd_far_fld.shp'
-#    fld_pt_df = read_shapefile_attribute_table(fld_pts)
-#    rd_pts_df = read_shapefile_attribute_table(rd_pts)
-#    cls = fld_pt_df.groupby('VDOT').agg(['count']).sum().sort_values(ascending=False)
-#    cls = cls / cls.sum() * 100
-#    cls = get_rd_classes(rd_pts)
-#    num_samples = (cls * 750 / 100).round()
-#
-#    l = []
-#    for c, n in num_samples.iteritems():
-#        d = rd_pts_df[rd_pts_df['VDOT'] == c]
-#        if d.shape[0] > n:
-#            idx = d.sample(n=int(n)).index
-#        else:
-#            print "there are too few points. only {} when it's asking for {} for VDOT {}".format(
-#                d.shape[0],
-#                n,
-#                c
-#            )
-#            idx = d.index
-#        l.append(pd.Series(idx))
-#    sampled = pd.concat(l)
-#    out_file_name = 'sampled_road_pts.shp'
-#    where_clause = '"FID" IN ({})'.format(",".join(map(str, sampled.tolist())))
-#    print "Select_analysis"
-#    arcpy.Select_analysis(rd_pts, out_file_name, where_clause)
-#    return sampled
+def get_road_cls_prop():
+    rd_shapefile = "D:\WAZE\Shapefiles/nor_roads_centerlines.shp"
+    rd_pts_shapefile = 'D:/WAZE/Shapefiles/rd_far_fld.shp'
+    
+    rd_df = read_shapefile_attribute_table(rd_shapefile)
+    rd_pts_df = read_shapefile_attribute_table(rd_pts_shapefile)
+    
+    c = Counter( rd_df['VDOT'] )
+    VDOT_cls = c.items() 
+    print VDOT_cls
+    
+    c_pts = Counter( rd_pts_df['VDOT'] )
+    VDOT_cls_pts = c_pts.items() 
+    print VDOT_cls_pts
+        
+    prop = []
+    for i in range(len(VDOT_cls)):
+        print VDOT_cls[i][1]
+        p = float(VDOT_cls[i][1])*100/len(rd_df['VDOT'])
+        print p
+        prop.append(p)
+        
+    num_samples = []
+    for i in prop:
+        n = i*len(rd_pts_df['VDOT'])/1000
+        num_samples.append(int(round(n)))
+        return c_pts, VDOT_cls_pts, num_samples
+
+def SelectRandomByCount (layer_shp, layer_df):
+    import random
+    pts_lyr = 'pts_lyr'
+    pts_lyr_vdot = 'pts_lyr_VDOT'
+    arcpy.MakeFeatureLayer_management(layer_shp, pts_lyr)               #create layer of road points shapefile
+
+    vdotFldName = arcpy.ListFields(layer_shp, "VD*")[0].name
+    delimVdotFld = arcpy.AddFieldDelimiters (layer_shp, vdotFldName)
+    c, VDOT_cls_pts, num_samples = get_road_cls_prop()
+    vdot = []
+    for i in range(0,len(c)):
+        v= VDOT_cls_pts[i][0]
+        vdot.append(int(v))
+#    vdotsStr = ", ".join (map (str, vdot))
+
+    for i,j in zip(vdot,num_samples):
+        sql_vdot = "{0} IN ({1})".format(delimVdotFld,i)
+
+        arcpy.MakeFeatureLayer_management(layer_shp, pts_lyr_vdot, sql_vdot) #selecting points with VDOT class 1 to 10
+        oids = [oid for oid, in arcpy.da.SearchCursor (pts_lyr_vdot, "OID@")]
+        oidFldName = arcpy.Describe (layer_shp).OIDFieldName
+
+        delimOidFld = arcpy.AddFieldDelimiters (layer_shp, oidFldName)    
+        randOids = random.sample (oids, j)
+        oidsStr = ", ".join (map (str, randOids))
+
+        sql = "{0} IN ({1})".format (delimOidFld, oidsStr)
+        z = arcpy.SelectLayerByAttribute_management (pts_lyr, "", sql)
+        arcpy.CopyFeatures_management(z, "D:\WAZE\Shapefiles/z%s.shp"%(i))
+    
+    shplist =  arcpy.ListFeatureClasses('z*.shp') 
+    print "Merge_management"
+    arcpy.Merge_management(shplist, os.path.join(gis_proj_dir, 'sampled_rd_pts.shp'))    
+    
+def merge_flood_non_flood():
+    flood_pts = 'D:\WAZE\Shapefiles/fld_pts_rd_data.shp'
+    non_flood_pts = 'D:\WAZE\Shapefiles\sampled_rd_pts.shp'
+    out_file_name = 'D:\WAZE\Shapefiles/fld_nfld_pts.shp'
+    print "Merge_management"
+    arcpy.Merge_management([flood_pts, non_flood_pts], out_file_name) 
 
 def make_rand_road_pts():
     """
@@ -108,20 +142,17 @@ def make_rand_road_pts():
     arcpy.JoinField_management(rd_pts_outside_buf, in_field='CID', join_table=road_pts_file,
                                join_field='FID')
     print "rd_points_outside_buf"
+
     
 def main():
-    # merge_flood_non_flood()
-    # add_flood_pt_field()
-    # add_is_downtown_field()
-    # extract_values_to_points()
-    # join_fld_pts_with_basin_attr()
-    # add_is_in_hague()
-    # update_db()
-    
     make_rand_road_pts()
     join_flooded_pts_with_rd_attributes()
-#    sample_road_points()
-#    merge_flood_non_flood()
+    get_road_cls_prop()
+    rd_pts_shapefile = 'D:/WAZE/Shapefiles/rd_far_fld.shp'
+    rd_pts_df = read_shapefile_attribute_table(rd_pts_shapefile)
+    SelectRandomByCount (rd_pts_shapefile,rd_pts_df)
+    merge_flood_non_flood()
+
 
 if __name__ == "__main__":
     main()
