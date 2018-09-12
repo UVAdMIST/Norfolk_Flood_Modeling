@@ -46,10 +46,11 @@ def join_flooded_pts_with_rd_attributes(flood_pts='flooded_points.shp', road_lin
 def get_road_cls_prop():
     rd_shapefile = "D:\WAZE\Shapefiles/nor_roads_centerlines.shp"
     rd_pts_shapefile = 'D:/WAZE/Shapefiles/rd_far_fld.shp'
-    
+    fld_pts_shapefile = 'D:/WAZE/Shapefiles/flooded_points.shp'
+
     rd_df = read_shapefile_attribute_table(rd_shapefile)
     rd_pts_df = read_shapefile_attribute_table(rd_pts_shapefile)
-    
+    fld_pts_df = read_shapefile_attribute_table(fld_pts_shapefile)
     c = Counter( rd_df['VDOT'] )
     VDOT_cls = c.items() 
     print VDOT_cls
@@ -67,7 +68,7 @@ def get_road_cls_prop():
         
     num_samples = []
     for i in prop:
-        n = i*len(rd_pts_df['VDOT'])/1000
+        n = i*len(fld_pts_df['Date'])/100
         num_samples.append(int(round(n)))
         return c_pts, VDOT_cls_pts, num_samples
 
