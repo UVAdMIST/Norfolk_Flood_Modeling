@@ -89,7 +89,7 @@ for i in range(0, 22):
     Test_Y = test_df['f_nf']
     rf_clf =  RandomForestClassifier(n_estimators= 100, random_state = 7, class_weight = 'balanced')
     rf_fit = rf_clf.fit(Train_X, Train_Y)
-    rf_predict = rf_fit.predict(Test_X)git 
+    rf_predict = rf_fit.predict(Test_X)git
     for i in Test_Y:
         Test.append(i) 
     for j in rf_predict:
