@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
-
 from sklearn.ensemble import RandomForestClassifier
-#from sklearn.ensemble import RandomForestRegressor
 import numpy as np
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
 #from sklearn import metrics
 #from sklearn import model_selection
 #from sklearn.metrics import *
@@ -20,18 +20,21 @@ import pandas as pd
     
 def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     
-    """      
-    verif_array = verification data that is used to create training and testing data
+    """
+    input_feat = input features that will be used to differentiate between true land classes, \ 
+           should be array-like where dimensions correspond to feature categories
+      
+    verif_data = verification data that is used to create training and testing data
     
-    f_train_prop, nf_train_prop = float between 0.0 and 1.0 that represents the proportion of the flood\
-        and nonflood samples that will be used for training, the complement of these variables will \
+    w_train_prop, nw_train_prop = float between 0.0 and 1.0 that represents the proportion of the wetland
+        and nonwetland samples that will be used for training, the complement of these variables will \
         be the testing size
     
     """    
     print ("Creating training and testing data..." + '\n')
     
     """Training and testing LABEL creation (0s and 1s)"""
-    #nonflood = 0 and flood = 1 in verificaiton dataset
+    #wetlands = 0 and nonwetlands = 1 in verificaiton dataset
     f_all = np.ma.masked_values(verif_array, 0.)
     nf_all = np.ma.masked_where(verif_array>0, verif_array)
     print ("f_all, nf_all")
@@ -40,13 +43,13 @@ def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     
 
 
-    #get all flood indices (ie, cannot choose from masked/NaN elements)
+#    #get all wetland indices (ie, cannot choose from masked/NaN elements)
     f_indices = np.where(f_all >= 1)
     nf_indices = np.where(nf_all == 0)
     print("f_indices, nf_indices")
 #    print (f_indices, len(f_indices[0]))
 #    print (nf_indices, len(nf_indices[0])) 
-#    #get total number of flood and nonflood features and calculate number of samples needed
+#    #get total number of wetland and nonwetland features and calculate number of samples needed
     f_total = float(len(f_indices[0]))
     f_train_n = float(f_train_prop * f_total)
     
@@ -57,13 +60,13 @@ def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     print(f_train_n, nf_train_n)
     
     
-#    print "Total number of verification flood samples: %d" %(int(f_total)) + '\n'
-#    print "Total number of verification nonflood samples %d" %(int(nf_total)) + '\n'
+#    print "Total number of verification wetland samples: %d" %(int(w_total)) + '\n'
+#    print "Total number of verification nonwetland samples %d" %(int(nw_total)) + '\n'
 #    
-    #choose random indices from flood and nonflood arrays to use for training
+    #choose random indices from wetland and nonwetland arrays to use for training
     #NOTE: np.where returns a list of data, first index is the array we want
     #np.random.seed(7)
-    f_rand_indices = np.random.choice(f_indices[0], size = int(f_train_n), replace = False)
+    f_rand_indices = np.random.choice(f_indices[0], size = int(f_train_n), replace = True)
     nf_rand_indices = np.random.choice(nf_indices[0], size = int(nf_train_n), replace = False)
     
     #create empty boolean arrays where all elements are False
@@ -99,25 +102,12 @@ def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     nf_test_nans = np.ma.filled(nf_test, -9999)
     
 #    print (f_test_nans, nf_test_nans)
-    #combine training flood and nonflood into a single array
+    #combine training wetlands and nonwetladns into a single array, reshape to write as geotiff
     train_labels = np.where(nf_train_nans > -9999, nf_train_nans, f_train_nans)
     
-    #combine testing flood and nonflood into a single array
+    #combine testing wetlands and nonwetlands into a single array, reshape to write as geotiff    
     test_labels = np.where(nf_test_nans> -9999, nf_test_nans, f_test_nans)
 
-#    #stats
-#    true_ratio = float(w_total / nw_total)
-#    train_ratio = float(w_train_n / nw_train_n)
-#    
-#    print "True wetlands to nonwetlands ratio: %.3f" %(true_ratio) +'\n'
-#    print "Training wetlands to nonwetlands ratio: %.3f" %(train_ratio) +'\n'
-#    
-#    train_labels_2d = np.reshape(train_labels, (verif_data.shape[0], verif_data.shape[1]))
-#    test_labels_2d = np.reshape(test_labels, (verif_data.shape[0], verif_data.shape[1]))
-#
-#    train_labels_tif = array_to_geotif(train_labels_2d, verif_meta, out_dir, "train_w%.3f_nw%.3f.tif" %(w_train_prop, nw_train_prop))
-#    test_labels_tif = array_to_geotif(test_labels_2d, verif_meta, out_dir,"test_w%.3f_nw%.3f.tif" %(float(1-w_train_prop), float(1-nw_train_prop)))
-#
     return train_labels, test_labels
 #
 def create_tt_feats(feat_arr, train_labels, test_labels):
@@ -144,15 +134,17 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
 #    print "class weights: W = %s | NW = %s" %(str(wcw), str(nwcw)) + '\n'
 #    
 #    #train RF model
-    rf_clf =  RandomForestClassifier(n_estimators= n_trees, max_depth = tree_depth, random_state = 7)
+    rf_clf =  RandomForestClassifier(n_estimators= n_trees, max_depth = tree_depth, random_state = 7, class_weight = 'balanced')
     
     train_X = train_features[ train_features[:,0] > -9999, :]
-    print(train_features[:,0])
+#    print(train_features[:,0])
     print (np.shape(train_X))
 
     train_Y = train_labels[train_labels > -9999] 
     print (np.shape(train_Y))
-    print(len(train_Y))
+    print(len(train_X))
+    print(type(test_features))
+    
 #    train_Y = train_labels_2d[~np.isnan(train_labels_2d)] 
 
 #    train_Y1 = train_Y.astype(int)
@@ -167,7 +159,7 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
 
     #save feature importance    
     
-#    n_feats = len(rf_fit.feature_importances_)
+    n_feats = len(rf_fit.feature_importances_)
     importance=[]
     #bands = np.arange(1, n_feats+1)
     
@@ -189,9 +181,11 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
 
 #    print "\n" + "Executing prediction...\n"
 
-    
-    rf_predict = rf_fit.predict(test_features)
-#    fuzzy_predict = rf_fit.predict_proba(test_features)
+#    test_feat_nonans = test_features[: , test_features != -9999]
+#    print (len(test_feat_nonans))
+    test_feat_nonan = test_features[ test_features[:,0] > -9999, :]
+    rf_predict = rf_fit.predict(test_feat_nonan)
+    fuzzy_predict = rf_fit.predict_proba(test_feat_nonan)
 
     
     #reshape outputs to prepare for geotif export
@@ -200,44 +194,69 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
 #    fuzzy_predict_w = fuzzy_predict[:,0].reshape(test_features[:, :, 0].shape)	
     
     
-    return rf_predict, importance
+    return rf_predict, importance, fuzzy_predict
 
-df = pd.read_csv('D:/Data TimeSeries (Hourly)/for_RFmodel_hourly -LW_Trial1.csv', delimiter=',')
-Dummy = df["num_flooded"]
-Dummy1 = df.drop(['num_flooded','event_date'], axis=1)
+df = pd.read_csv('F:\WAZE/New folder/for_RF_model.csv', delimiter=',')
+Dummy = df["f_nf"]
+Dummy1 = df.drop(['f_nf','event_date','Long','Lat','OID_'], axis=1)
 Features = list(Dummy1.columns.values)
 
 Train = []
 Test = []
 prediction = []
 feature_imp = []
+probab = []
+#feature_imp.append(Features)
 
-Train_prop = 0.1
-for i in range(0,100):
-    train, test = create_tt_labels(Dummy,0.8,Train_prop)
-    for i in test:
+Train_prop = .000897*7
+#print (Train_prop)
+for i in range(0,3):
+    train, test = create_tt_labels(Dummy,.8*5,Train_prop)
+    test_nonans = test[test > -9999]
+    for i in test_nonans:
         Test.append(i)  
      
     train_f, test_f = create_tt_feats(Dummy1, train, test)
-    rf_pred, imp = classify(train_f, train, test_f, Features)
+    rf_pred, imp, rf_prob = classify(train_f, train, test_f, Features)
     
-
+    for k in rf_prob:
+        probab.append(k)
     for j in rf_pred:
         prediction.append(j)
-
+    
     feature_imp.append(imp)
-        
+            
+#test_nonans = Test[Test]
+#print (len(Test))
+#print (len(test_nonans))
 
 #print(train)
 #print(Test)
 #print(train_f)
 #print(rf_pred)
+print(confusion_matrix(Test, prediction))
+TN = confusion_matrix(Test, prediction)[0][0]
+FP = confusion_matrix(Test, prediction)[0][1]
+FN = confusion_matrix(Test, prediction)[1][0]
+TP = confusion_matrix(Test, prediction)[1][1]
+print(TP, TN, FP, FN)
 
- 
-np.savetxt("D:/Data TimeSeries (Hourly)/Under_Sampling/%s_test_target_LW.csv" %(Train_prop), Test,delimiter = ',',header='num_flooded')
-np.savetxt("D:/Data TimeSeries (Hourly)/Under_Sampling/%s_train_target_LW.csv" %(Train_prop), train,delimiter = ',')
-np.savetxt("D:/Data TimeSeries (Hourly)/Under_Sampling/%s_train_feature_LW.csv" %(Train_prop), train_f,delimiter = ',')
-np.savetxt("D:/Data TimeSeries (Hourly)/Under_Sampling/%s_test_feature_LW.csv" %(Train_prop), test_f,delimiter = ',')
-np.savetxt('D:/Data TimeSeries (Hourly)/Under_Sampling/%s_prediction_test_LW.csv' %(Train_prop), prediction ,delimiter = ',',header='Prediction' )
+FP_rate = FP*100/(TN+FP)
+FN_rate = FN*100/(TP+FN)
+print ("FP rate "+str(FP_rate))
+print ("FN rate "+str(FN_rate))
 
-np.savetxt('D:/Data TimeSeries (Hourly)/Under_Sampling/%s_imp_test_LW.csv' %(Train_prop), feature_imp , newline='\n', delimiter = ',', header= str(Features), comments='')
+print(precision_score(Test, prediction, average='binary'))
+
+print(recall_score(Test, prediction, average='binary'))
+
+#np.savetxt("F:\WAZE\Result\%s_test_target_5205.csv" %(round(Train_prop, 6)), Test,delimiter = ',',header='f_nf', comments = " ")
+#np.savetxt("F:/WAZE/%s_train_target.csv" %(Train_prop), train,delimiter = ',', comments = " ")
+#np.savetxt("F:/WAZE/%s_train_feature.csv" %(Train_prop), train_f,delimiter = ',', comments = " ")
+#np.savetxt("F:\WAZE\Result/%s_test_feature.csv" %(round(Train_prop, 6)), test_f,delimiter = ',', comments = " ")
+#np.savetxt('F:\WAZE\Result/%s_prediction_test_5205.csv' %(round(Train_prop, 6)), prediction ,delimiter = ',',header='Prediction' , comments = " ")
+#np.savetxt('F:\WAZE\Result/%s_probability_test_mod.csv' %(round(Train_prop, 6)), probab ,delimiter = ',',header='Probability' , comments = " ")
+
+#print (pd.merge(Test, prediction))
+#np.savetxt('F:\WAZE\Result/%s_imp_test_mod.csv' %(round(Train_prop, 6)), feature_imp , newline='\n', delimiter = ',', header= str(Features), comments='')
+
