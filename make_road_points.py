@@ -127,7 +127,7 @@ def make_rand_road_pts():
     rand_rd_pts_lyr = 'rand_road_lyr'
     arcpy.CreateRandomPoints_management(gis_proj_dir, rand_rd_pts_file, road_pts_file,
                                         number_of_points_or_field=50000,
-                                        minimum_allowed_distance=200)
+                                        minimum_allowed_distance='200 Feet')
     print "rand_rd_points_file"
     fld_pts_file = 'flooded_points.shp'
     fld_pts_buf = 'fld_pt_buf.shp'

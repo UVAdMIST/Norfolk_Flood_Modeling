@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-This program executes a train/test split, random forest classification, and accuracy assessment.
-   Authors:    G. O'Neil and F.Zahura
-   Changelog: 20180323: Initial version
-"""
+
 from sklearn.ensemble import RandomForestClassifier
 #from sklearn.ensemble import RandomForestRegressor
 import numpy as np
@@ -24,21 +20,18 @@ import pandas as pd
     
 def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     
-    """
-    input_feat = input features that will be used to differentiate between true land classes, \ 
-           should be array-like where dimensions correspond to feature categories
-      
-    verif_data = verification data that is used to create training and testing data
+    """      
+    verif_array = verification data that is used to create training and testing data
     
-    w_train_prop, nw_train_prop = float between 0.0 and 1.0 that represents the proportion of the wetland
-        and nonwetland samples that will be used for training, the complement of these variables will \
+    f_train_prop, nf_train_prop = float between 0.0 and 1.0 that represents the proportion of the flood\
+        and nonflood samples that will be used for training, the complement of these variables will \
         be the testing size
     
     """    
     print ("Creating training and testing data..." + '\n')
     
     """Training and testing LABEL creation (0s and 1s)"""
-    #wetlands = 0 and nonwetlands = 1 in verificaiton dataset
+    #nonflood = 0 and flood = 1 in verificaiton dataset
     f_all = np.ma.masked_values(verif_array, 0.)
     nf_all = np.ma.masked_where(verif_array>0, verif_array)
     print ("f_all, nf_all")
@@ -47,13 +40,13 @@ def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     
 
 
-#    #get all wetland indices (ie, cannot choose from masked/NaN elements)
+    #get all flood indices (ie, cannot choose from masked/NaN elements)
     f_indices = np.where(f_all >= 1)
     nf_indices = np.where(nf_all == 0)
     print("f_indices, nf_indices")
 #    print (f_indices, len(f_indices[0]))
 #    print (nf_indices, len(nf_indices[0])) 
-#    #get total number of wetland and nonwetland features and calculate number of samples needed
+#    #get total number of flood and nonflood features and calculate number of samples needed
     f_total = float(len(f_indices[0]))
     f_train_n = float(f_train_prop * f_total)
     
@@ -64,10 +57,10 @@ def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     print(f_train_n, nf_train_n)
     
     
-#    print "Total number of verification wetland samples: %d" %(int(w_total)) + '\n'
-#    print "Total number of verification nonwetland samples %d" %(int(nw_total)) + '\n'
+#    print "Total number of verification flood samples: %d" %(int(f_total)) + '\n'
+#    print "Total number of verification nonflood samples %d" %(int(nf_total)) + '\n'
 #    
-    #choose random indices from wetland and nonwetland arrays to use for training
+    #choose random indices from flood and nonflood arrays to use for training
     #NOTE: np.where returns a list of data, first index is the array we want
     #np.random.seed(7)
     f_rand_indices = np.random.choice(f_indices[0], size = int(f_train_n), replace = False)
@@ -106,10 +99,10 @@ def create_tt_labels(verif_array, f_train_prop, nf_train_prop):
     nf_test_nans = np.ma.filled(nf_test, -9999)
     
 #    print (f_test_nans, nf_test_nans)
-    #combine training wetlands and nonwetladns into a single array, reshape to write as geotiff
+    #combine training flood and nonflood into a single array
     train_labels = np.where(nf_train_nans > -9999, nf_train_nans, f_train_nans)
     
-    #combine testing wetlands and nonwetlands into a single array, reshape to write as geotiff    
+    #combine testing flood and nonflood into a single array
     test_labels = np.where(nf_test_nans> -9999, nf_test_nans, f_test_nans)
 
 #    #stats
