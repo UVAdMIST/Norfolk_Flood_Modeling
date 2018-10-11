@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 
-df_csv = pd.read_csv('F:\WAZE/New folder/for_RF_model.csv', delimiter=',')
+df_csv = pd.read_csv('D:\Data TimeSeries (Hourly)\Classification/for_RF_model.csv', delimiter=',')
 df = df_csv.drop(['OID_','Long','Lat','event_date'], axis=1)
 Label = df["f_nf"]
 print (len(df['f_nf']))
@@ -66,7 +66,7 @@ prediction = []
 feature_imp = []
 probab = []
 
-for i in range(0, 30):
+for i in range(0, 22):
     Tr_F = train_df[train_df['f_nf'] == 1]
     nf_train_df = train_df[train_df['f_nf'] == 0]
     nf_train_indices = train_df.index[train_df['f_nf'] == 0].tolist()
@@ -89,7 +89,7 @@ for i in range(0, 30):
     Test_Y = test_df['f_nf']
     rf_clf =  RandomForestClassifier(n_estimators= 100, random_state = 7, class_weight = 'balanced')
     rf_fit = rf_clf.fit(Train_X, Train_Y)
-    rf_predict = rf_fit.predict(Test_X)
+    rf_predict = rf_fit.predict(Test_X)git 
     for i in Test_Y:
         Test.append(i) 
     for j in rf_predict:
