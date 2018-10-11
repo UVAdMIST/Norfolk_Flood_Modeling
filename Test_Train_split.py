@@ -193,7 +193,6 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
     
 #    fuzzy_predict_w = fuzzy_predict[:,0].reshape(test_features[:, :, 0].shape)	
     
-    
     return rf_predict, importance, fuzzy_predict
 
 df = pd.read_csv('F:\WAZE/New folder/for_RF_model.csv', delimiter=',')
