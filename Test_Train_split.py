@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 This program executes a train/test split, random forest classification, and accuracy assessment.
-   Authors:    G. O'Neil and L. Saby
+   Authors:    G. O'Neil and F.Zahura
    Changelog: 20180323: Initial version
 """
-#from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
+#from sklearn.ensemble import RandomForestRegressor
 import numpy as np
 #from sklearn import metrics
 #from sklearn import model_selection
@@ -151,7 +151,7 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
 #    print "class weights: W = %s | NW = %s" %(str(wcw), str(nwcw)) + '\n'
 #    
 #    #train RF model
-    rf_clf =  RandomForestRegressor(n_estimators= n_trees, max_depth = tree_depth, random_state = 7)
+    rf_clf =  RandomForestClassifier(n_estimators= n_trees, max_depth = tree_depth, random_state = 7)
     
     train_X = train_features[ train_features[:,0] > -9999, :]
     print(train_features[:,0])
@@ -174,7 +174,7 @@ def classify(train_features, train_labels, test_features, feat_name, n_trees = 1
 
     #save feature importance    
     
-    n_feats = len(rf_fit.feature_importances_)
+#    n_feats = len(rf_fit.feature_importances_)
     importance=[]
     #bands = np.arange(1, n_feats+1)
     
@@ -218,9 +218,7 @@ Train = []
 Test = []
 prediction = []
 feature_imp = []
-#feature_imp.append(Features)
 
-#Myfile3 = r'D:/Data TimeSeries (Hourly)/Under_Sampling/importance_20_.csv'
 Train_prop = 0.1
 for i in range(0,100):
     train, test = create_tt_labels(Dummy,0.8,Train_prop)
@@ -236,7 +234,6 @@ for i in range(0,100):
 
     feature_imp.append(imp)
         
-    
 
 #print(train)
 #print(Test)
@@ -250,12 +247,4 @@ np.savetxt("D:/Data TimeSeries (Hourly)/Under_Sampling/%s_train_feature_LW.csv" 
 np.savetxt("D:/Data TimeSeries (Hourly)/Under_Sampling/%s_test_feature_LW.csv" %(Train_prop), test_f,delimiter = ',')
 np.savetxt('D:/Data TimeSeries (Hourly)/Under_Sampling/%s_prediction_test_LW.csv' %(Train_prop), prediction ,delimiter = ',',header='Prediction' )
 
-#Myfile = r'D:/Data TimeSeries (Hourly)/Under_Sampling/feature_imp_20_.txt'
-#f=open(Myfile,'w')
-#
-#for i in feature_imp:
-#    f.write(i+'\n')
-#f.close()
-
-#for i in feature_imp:
 np.savetxt('D:/Data TimeSeries (Hourly)/Under_Sampling/%s_imp_test_LW.csv' %(Train_prop), feature_imp , newline='\n', delimiter = ',', header= str(Features), comments='')
